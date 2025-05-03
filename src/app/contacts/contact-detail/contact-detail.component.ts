@@ -8,5 +8,5 @@ import { Contact } from '../contact-list/contact.model';
   styleUrl: './contact-detail.component.css'
 })
 export class ContactDetailComponent {
-  contact: Contact;
+  contact?: Contact;
 }
