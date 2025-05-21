@@ -12,7 +12,7 @@ export class MessageEditComponent implements OnInit {
   @ViewChild('subject') subject: ElementRef;
   @ViewChild('msgText') msgText: ElementRef;
 
-  currentSender: string = 'Karla';
+  currentSender: string = '7';
 
   constructor(private messageService: MessageService) { }
 
