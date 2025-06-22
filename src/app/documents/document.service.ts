@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Document } from './document.model';
-import { MOCKDOCUMENTS } from './MOCKDOCUMENTS';
 import { Subject } from 'rxjs';
 
 @Injectable({
@@ -12,13 +12,22 @@ export class DocumentService {
   documentListChangedEvent = new Subject<Document[]>();
   maxDocumentId: number;
 
-  constructor() { 
-    this.documents = MOCKDOCUMENTS;
-    this.maxDocumentId = this.getMaxId();
-  }
+  private documentsUrl = 'https://cmsproject25-1de72-default-rtdb.firebaseio.com/documents.json';
 
-  getDocuments(): Document[] {
-    return this.documents.slice();
+  constructor(private http: HttpClient) { }
+
+  getDocuments(): void {
+    this.http.get<Document[]>(this.documentsUrl).subscribe(
+      (documents: Document[]) => {
+        this.documents = documents;
+        this.maxDocumentId = this.getMaxId();
+
+        this.documentListChangedEvent.next(this.documents.slice());
+      },
+      (error: any) => {
+        console.error('Error fetching documents:', error);
+      }
+    );
   }
 
   getDocument(id: string): Document {
@@ -47,7 +56,7 @@ export class DocumentService {
     this.maxDocumentId++;
     newDocument.id = this.maxDocumentId.toString();
     this.documents.push(newDocument);
-    this.documentListChangedEvent.next(this.documents.slice());
+    this.storeDocuments();
   }
 
   updateDocument(originalDocument: Document, newDocument: Document) {
@@ -58,7 +67,7 @@ export class DocumentService {
 
     newDocument.id = originalDocument.id;
     this.documents[pos] = newDocument;
-    this.documentListChangedEvent.next(this.documents.slice());
+    this.storeDocuments();
   }
 
    deleteDocument(document: Document) {
@@ -68,6 +77,19 @@ export class DocumentService {
     if (pos < 0) return;
 
     this.documents.splice(pos, 1);
-    this.documentListChangedEvent.next(this.documents.slice());
+    this.storeDocuments();
+  }
+
+  storeDocuments() {
+    const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
+    const documentsJson = JSON.stringify(this.documents);
+
+    this.http.put(
+      'https://cmsproject25-1de72-default-rtdb.firebaseio.com/documents.json',
+      documentsJson,
+      { headers: headers }
+    ).subscribe(() => {
+      this.documentListChangedEvent.next(this.documents.slice());
+    });
   }
 }
