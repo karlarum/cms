@@ -10,16 +10,15 @@ export class MessageService {
   messageChangedEvent = new EventEmitter<Message[]>();
   maxMessageId: number;
 
-  private messagesUrl = 'https://cmsproject25-1de72-default-rtdb.firebaseio.com/messages.json';
+  private messagesUrl = 'http://localhost:3000/messages';
 
   constructor(private http: HttpClient) { }
 
   getMessages(): void {
-    this.http.get<Message[]>(this.messagesUrl).subscribe(
-      (messages: Message[]) => {
-        this.messages = messages;
+    this.http.get<{message: string, messages: Message[]}>(this.messagesUrl).subscribe(
+      (responseData) => {
+        this.messages = responseData.messages;
         this.maxMessageId = this.getMaxId();
-
         this.messageChangedEvent.next(this.messages.slice());
       },
       (error: any) => {
@@ -28,7 +27,7 @@ export class MessageService {
     )
   }
 
-  getMessage(id:string): Message {
+  getMessage(id: string): Message {
     for (let message of this.messages) {
       if (message.id === id) {
         return message;
@@ -38,9 +37,9 @@ export class MessageService {
   }
 
   getMaxId(): number {
-    let maxId= 0;
-    for (let doc of this.messages) {
-    const currentId = parseInt(doc.id, 10);
+    let maxId = 0;
+    for (let msg of this.messages) {
+      const currentId = parseInt(msg.id, 10);
       if (currentId > maxId) {
         maxId = currentId;
       }
@@ -49,20 +48,74 @@ export class MessageService {
   }
 
   addMessage(message: Message) {
-  this.messages.push(message);
-  this.storeMessages();
+    if (!message) {
+      return;
+    }
+
+    message.id = '';
+
+    const headers = new HttpHeaders({'Content-Type': 'application/json'});
+    
+    this.http.post<{ message: string, messageData: Message }>('http://localhost:3000/messages',
+      message,
+      { headers: headers })
+      .subscribe(
+        (responseData) => {
+          this.messages.push(responseData.messageData);
+          this.sortAndSend();
+        }
+      );
   }
 
-  storeMessages() {
-    const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
-    const messagesJson = JSON.stringify(this.messages);
+  updateMessage(originalMessage: Message, newMessage: Message) {
+    if (!originalMessage || !newMessage) {
+      return;
+    }
 
-    this.http.put(
-      'https://cmsproject25-1de72-default-rtdb.firebaseio.com/messages.json',
-      messagesJson,
-      { headers: headers }
-    ).subscribe(() => {
-      this.messageChangedEvent.next(this.messages.slice());
+    const pos = this.messages.findIndex(m => m.id === originalMessage.id);
+    if (pos < 0) {
+      return;
+    }
+
+    newMessage.id = originalMessage.id;
+
+    const headers = new HttpHeaders({'Content-Type': 'application/json'});
+    
+    this.http.put('http://localhost:3000/messages/' + originalMessage.id,
+      newMessage, { headers: headers })
+      .subscribe(
+        (response: Response) => {
+          this.messages[pos] = newMessage;
+          this.sortAndSend();
+        }
+      );
+  }
+
+  deleteMessage(message: Message) {
+    if (!message) {
+      return;
+    }
+
+    const pos = this.messages.findIndex(m => m.id === message.id);
+    if (pos < 0) {
+      return;
+    }
+
+    this.http.delete('http://localhost:3000/messages/' + message.id)
+      .subscribe(
+        (response: Response) => {
+          this.messages.splice(pos, 1);
+          this.sortAndSend();
+        }
+      );
+  }
+
+  sortAndSend() {
+    this.messages.sort((a, b) => {
+      if (a.subject < b.subject) return -1;
+      if (a.subject > b.subject) return 1;
+      return 0;
     });
+    this.messageChangedEvent.next(this.messages.slice());
   }
 }

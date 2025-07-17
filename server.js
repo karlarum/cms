@@ -1,4 +1,5 @@
 // Get dependencies
+var mongoose = require('mongoose');
 var express = require('express');
 var path = require('path');
 var http = require('http');
@@ -11,6 +12,15 @@ var index = require('./server/routes/app');
 const messageRoutes = require('./server/routes/messages');
 const contactRoutes = require('./server/routes/contacts');
 const documentsRoutes = require('./server/routes/documents');
+
+// establish a connection to the mongo database
+mongoose.connect('mongodb://localhost:27017/cms')
+  .then(() => {
+    console.log('Connected to database!');
+  })
+  .catch((err) => {
+    console.log('Connection failed: ' + err);
+  });
 
 var app = express(); // create an instance of express
 
